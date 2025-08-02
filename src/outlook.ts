@@ -1,4 +1,4 @@
-import { composeMessage, sendReminder } from "./slack";
+import { composeMessage, sendReminder } from "./slackMessaging";
 import { getNonResponders } from "./slackHelper";
 import { OutlookEvent } from "./types";
 

@@ -1,11 +1,13 @@
 import { fetchEvents, processEvent } from "./outlook";
+import { startServer } from "./server";
 
-async function main() {
+startServer();
+
+async function sendDailyReminders() {
   const events = await fetchEvents();
-
   for (const event of events) {
     await processEvent(event);
   }
 }
 
-main().catch(console.error);
+sendDailyReminders().catch(console.error);

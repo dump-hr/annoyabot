@@ -30,7 +30,7 @@ export function composeMessage(event: OutlookEvent): SlackMessage {
         type: "header",
         text: {
           type: "plain_text",
-          text: "Kralju odgovori na event :rage1::exclamation:",
+          text: "Kralju odgovori na event :neutral_face::exclamation:",
           emoji: true,
         },
       },
