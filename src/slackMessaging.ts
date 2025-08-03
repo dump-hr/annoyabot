@@ -19,6 +19,19 @@ export async function sendReminder(userEmail: string, message: SlackMessage) {
     console.error(`Failed to send to ${userEmail}:`, error);
   }
 }
+
+export async function postThreadMessage(client: any, body: any, text: string) {
+  try {
+    await client.chat.postMessage({
+      channel: body.container.channel_id,
+      thread_ts: body.container.message_ts,
+      text,
+    });
+  } catch (error) {
+    console.error("Error sending message:", error);
+  }
+}
+
 export function composeMessage(event: OutlookEvent): SlackMessage {
   const startDate = dayjs(event.start);
   const endDate = dayjs(event.end);

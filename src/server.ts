@@ -13,7 +13,7 @@ export function startServer() {
 
   (async () => {
     await slackApp.start();
-    console.log("⚡ Bolt app pokrenut");
+    console.log("App pokrenut");
   })();
 
   return slackApp;

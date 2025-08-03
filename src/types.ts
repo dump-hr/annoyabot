@@ -4,6 +4,7 @@ interface Attendee {
 }
 
 export type OutlookEvent = {
+  id: string;
   subject: string;
   start: string;
   end: string;

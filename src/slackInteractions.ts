@@ -1,4 +1,5 @@
 import { App } from "@slack/bolt";
+import { postThreadMessage } from "./slackMessaging";
 
 export function setupSlackInteractions(slackApp: App) {
   slackApp.action("event_accept", async ({ body, ack, client }) => {
@@ -19,16 +20,4 @@ export function setupSlackInteractions(slackApp: App) {
     await ack();
     await postThreadMessage(client, body, "Razumijem! :sadge:");
   });
-
-  async function postThreadMessage(client: any, body: any, text: string) {
-    try {
-      await client.chat.postMessage({
-        channel: body.container.channel_id,
-        thread_ts: body.container.message_ts,
-        text,
-      });
-    } catch (error) {
-      console.error("Greška pri slanju poruke:", error);
-    }
-  }
 }
