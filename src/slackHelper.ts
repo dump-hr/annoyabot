@@ -25,3 +25,8 @@ export async function getSlackIdByEmail(email: string): Promise<string> {
     throw error;
   }
 }
+
+export const getSlackUserEmail = async (client: WebClient, userId: string) => {
+  const userInfo = await client.users.info({ user: userId });
+  return userInfo.user?.profile?.email;
+};

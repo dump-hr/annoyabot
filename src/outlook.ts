@@ -57,6 +57,7 @@ export async function fetchEvents(): Promise<OutlookEvent[]> {
   }
 
   const events = parseOutlookEvents(responseData);
+  events.sort((a, b) => a.start.diff(b.start));
 
   const testEvents = events.filter((event) =>
     event.subject.includes("annoyabot-test")
@@ -68,6 +69,8 @@ export async function fetchEvents(): Promise<OutlookEvent[]> {
 export async function processEvent(event: OutlookEvent) {
   const nonResponders = await getNonResponders(event);
   const message = composeMessage(event);
+
+  //await sendReminder(process.env.MY_EMAIL, message);
 
   for (const user of nonResponders) {
     await sendReminder(user.email, message);
