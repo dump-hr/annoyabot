@@ -1,6 +1,6 @@
-import dayjs from "dayjs";
 import { OutlookEvent, SlackMessage } from "./types";
 import { getSlackIdByEmail, slack } from "./slackHelper";
+import dayjs from "dayjs";
 
 export async function sendReminder(userEmail: string, message: SlackMessage) {
   if (!userEmail) {
@@ -51,7 +51,7 @@ export function composeMessage(event: OutlookEvent): SlackMessage {
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `Nisi odgovorio/la na sljedeći event: :excuseme:\n*${
+          text: `Nisi odgovorio/la na sljedeći event: :excuseme:\n\n*${
             event.subject
           }*\n:date: ${startDate.format(
             "DD.MM.YYYY"

@@ -1,5 +1,5 @@
-import { App } from "@slack/bolt";
 import { setupSlackInteractions } from "./slackInteractions";
+import { App } from "@slack/bolt";
 
 export function startServer() {
   const slackApp = new App({

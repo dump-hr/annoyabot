@@ -1,9 +1,10 @@
 import { composeMessage, sendReminder } from "./slackMessaging";
+import { parseOutlookEvents } from "./utils";
 import { getNonResponders } from "./slackHelper";
 import { OutlookEvent } from "./types";
+import timezone from "dayjs/plugin/timezone";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import timezone from "dayjs/plugin/timezone";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -36,13 +37,11 @@ export async function getAccessToken() {
 export async function fetchEvents(): Promise<OutlookEvent[]> {
   const tomorrow = dayjs().add(1, "day").format("YYYY-MM-DD");
   const dayAfterTomorrow = dayjs().add(2, "days").format("YYYY-MM-DD");
-  const filter = `start/dateTime ge '${tomorrow}' and end/dateTime lt '${dayAfterTomorrow}'`;
+  const filter = `start/dateTime ge '${tomorrow}T00:00:00' and end/dateTime lt '${dayAfterTomorrow}T00:00:00'`;
   const token = await getAccessToken();
 
-  console.log("Filter:", filter);
-
   const response = await fetch(
-    `https://graph.microsoft.com/v1.0/users/${process.env.OUTLOOK_USER_EMAIL}/calendar/events?$filter=${filter}&$select=id,subject,start,end,organizer,attendees`,
+    `https://graph.microsoft.com/v1.0/users/${process.env.OUTLOOK_USER_EMAIL}/calendar/events?filter=${filter}&select=id,subject,start,end,organizer,attendees`,
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -50,24 +49,20 @@ export async function fetchEvents(): Promise<OutlookEvent[]> {
     }
   );
 
-  const { value }: { value: OutlookEvent[] } = await response.json();
-  if (!Array.isArray(value)) {
-    console.error("No events found or invalid response format: ", value);
+  const responseData = await response.json();
+
+  if (!response.ok || !Array.isArray(responseData.value)) {
+    console.error("Error fetching events:", responseData);
     return [];
   }
 
-  const events = value.map(
-    ({ id, subject, start, end, organizer, attendees }) => ({
-      id,
-      subject,
-      start: dayjs.utc(start).tz("Europe/Zagreb").format("HH:mm"),
-      end: dayjs.utc(end).tz("Europe/Zagreb").format("HH:mm"),
-      organizer,
-      attendees,
-    })
+  const events = parseOutlookEvents(responseData);
+
+  const testEvents = events.filter((event) =>
+    event.subject.includes("annoyabot-test")
   );
 
-  return events;
+  return testEvents;
 }
 
 export async function processEvent(event: OutlookEvent) {

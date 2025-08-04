@@ -1,5 +1,5 @@
-import { App } from "@slack/bolt";
 import { postThreadMessage } from "./slackMessaging";
+import { App } from "@slack/bolt";
 
 export function setupSlackInteractions(slackApp: App) {
   slackApp.action("event_accept", async ({ body, ack, client }) => {

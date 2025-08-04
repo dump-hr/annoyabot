@@ -1,4 +1,6 @@
-interface Attendee {
+import { Dayjs } from "dayjs";
+
+export interface Attendee {
   email: string;
   status: "none" | "accepted" | "tentative" | "declined";
 }
@@ -6,32 +8,56 @@ interface Attendee {
 export type OutlookEvent = {
   id: string;
   subject: string;
-  start: string;
-  end: string;
+  start: Dayjs;
+  end: Dayjs;
   organizer: string;
   attendees: Attendee[];
 };
-type SlackTextObject = {
-  type: "plain_text" | "mrkdwn";
-  text: string;
-  emoji?: boolean;
+
+export type RawOutlookEvent = {
+  id: string;
+  subject?: string;
+  start?: { dateTime?: string };
+  end?: { dateTime?: string };
+  organizer?: {
+    emailAddress?: {
+      address?: string;
+    };
+  };
+  attendees?: Array<{
+    emailAddress?: {
+      address?: string;
+    };
+    status?: {
+      response?: "none" | "accepted" | "tentative" | "declined";
+    };
+  }>;
 };
 
-type SlackBlock =
+export type SlackBlock =
   | {
-      type: "header";
-      text: SlackTextObject;
-    }
-  | {
-      type: "section";
-      text: SlackTextObject;
+      type: "header" | "section";
+      text: {
+        type: "plain_text" | "mrkdwn";
+        text: string;
+        emoji?: boolean;
+      };
     }
   | {
       type: "divider";
     }
   | {
       type: "actions";
-      elements: SlackButton[];
+      elements: Array<{
+        type: "button";
+        text: {
+          type: "plain_text";
+          text: string;
+          emoji?: boolean;
+        };
+        action_id: string;
+        style?: "primary" | "danger";
+      }>;
     }
   | {
       type: "context";
@@ -40,17 +66,6 @@ type SlackBlock =
         text: string;
       }>;
     };
-
-type SlackButton = {
-  type: "button";
-  text: {
-    type: "plain_text";
-    text: string;
-    emoji?: boolean;
-  };
-  action_id: string;
-  style?: "primary" | "danger";
-};
 
 export type SlackMessage = {
   text: string;
