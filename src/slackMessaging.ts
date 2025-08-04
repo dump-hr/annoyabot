@@ -75,6 +75,7 @@ export function composeMessage(event: OutlookEvent): SlackMessage {
             },
             style: "primary",
             action_id: "event_accept",
+            value: event.id,
           },
           {
             type: "button",
@@ -84,6 +85,7 @@ export function composeMessage(event: OutlookEvent): SlackMessage {
               emoji: true,
             },
             action_id: "event_tentative",
+            value: event.id,
           },
           {
             type: "button",
@@ -94,6 +96,7 @@ export function composeMessage(event: OutlookEvent): SlackMessage {
             },
             style: "danger",
             action_id: "event_decline",
+            value: event.id,
           },
         ],
       },

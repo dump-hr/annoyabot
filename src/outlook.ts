@@ -73,3 +73,57 @@ export async function processEvent(event: OutlookEvent) {
     await sendReminder(user.email, message);
   }
 }
+
+export async function updateEventResponse(
+  eventId: string,
+  userEmail: string,
+  statusResponse: "accepted" | "tentative" | "declined"
+) {
+  const token = await getAccessToken();
+
+  const getUrl = `https://graph.microsoft.com/v1.0/users/${process.env.OUTLOOK_USER_EMAIL}/events/${eventId}?$select=id,attendees`;
+  const getResponse = await fetch(getUrl, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!getResponse.ok) {
+    throw new Error(`Failed to get event: ${getResponse.statusText}`);
+  }
+
+  const event = await getResponse.json();
+
+  const updatedAttendees = event.attendees.map((attendee) => {
+    if (attendee.emailAddress.address === userEmail) {
+      return {
+        ...attendee,
+        status: {
+          response: statusResponse,
+          time: new Date().toISOString(),
+        },
+      };
+    }
+    return attendee;
+  });
+
+  const updateResponse = await fetch(
+    `https://graph.microsoft.com/v1.0/users/${process.env.OUTLOOK_USER_EMAIL}/events/${eventId}`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        attendees: updatedAttendees,
+      }),
+    }
+  );
+
+  if (!updateResponse.ok) {
+    const errorData = await updateResponse.json();
+    console.error("Graph API Error:", errorData);
+    throw new Error(`Failed to update event: ${updateResponse.statusText}`);
+  }
+}

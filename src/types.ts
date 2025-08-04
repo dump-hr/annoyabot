@@ -57,6 +57,7 @@ export type SlackBlock =
         };
         action_id: string;
         style?: "primary" | "danger";
+        value: string;
       }>;
     }
   | {

@@ -1,7 +1,7 @@
-import { Attendee, OutlookEvent, RawOutlookEvent } from "./types";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
+import { Attendee, OutlookEvent, RawOutlookEvent } from "./types";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -13,8 +13,8 @@ export const parseOutlookEvents = (responseData: {
     (event): OutlookEvent => ({
       id: event.id,
       subject: event.subject,
-      start: dayjs(event.start?.dateTime),
-      end: dayjs(event.end?.dateTime),
+      start: convertToLocalTime(event.start?.dateTime),
+      end: convertToLocalTime(event.end?.dateTime),
       organizer: event.organizer.emailAddress.address,
       attendees:
         event.attendees?.map(
@@ -25,4 +25,10 @@ export const parseOutlookEvents = (responseData: {
         ) || [],
     })
   );
+};
+
+const convertToLocalTime = (dateTimeString?: string): dayjs.Dayjs => {
+  if (!dateTimeString) return dayjs();
+
+  return dayjs.utc(dateTimeString).tz("Europe/Zagreb");
 };
