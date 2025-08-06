@@ -58,6 +58,7 @@ export async function fetchEvents(): Promise<OutlookEvent[]> {
   }
 
   const events = parseOutlookEvents(responseData);
+  events.sort((a, b) => a.start.diff(b.start));
 
   const testEvents = events.filter((event) =>
     event.subject.includes("Annoyabot-test")
@@ -70,11 +71,19 @@ export async function processEvent(event: OutlookEvent) {
   const nonResponders = await getNonResponders(event);
   const message = composeMessage(event);
 
+<<<<<<< HEAD
   await sendReminder(process.env.MY_EMAIL, message);
 
   // for (const user of nonResponders) {
   //   await sendReminder(user.email, message);
   // }
+=======
+  //await sendReminder(process.env.MY_EMAIL, message);
+
+  for (const user of nonResponders) {
+    await sendReminder(user.email, message);
+  }
+>>>>>>> 10d244fa865694bcc4db3229d2a086e9f2a388ce
 }
 
 export async function updateEventResponse(
