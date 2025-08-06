@@ -22,9 +22,14 @@ export async function sendReminder(userEmail: string, message: SlackMessage) {
 
 export async function postThreadMessage(client: any, body: any, text: string) {
   try {
+    const threadTs =
+      body.container?.thread_ts ||
+      body.message?.ts ||
+      body.container?.message_ts;
+
     await client.chat.postMessage({
       channel: body.container.channel_id,
-      thread_ts: body.container.message_ts,
+      thread_ts: threadTs,
       text,
     });
   } catch (error) {
@@ -37,7 +42,7 @@ export function composeMessage(event: OutlookEvent): SlackMessage {
   const endDate = dayjs(event.end);
 
   const message: SlackMessage = {
-    text: `Nisi odgovorio/la na event: \n${event.subject}`,
+    text: `Ej odgovori na event: ${event.subject}`,
     blocks: [
       {
         type: "header",
@@ -75,7 +80,7 @@ export function composeMessage(event: OutlookEvent): SlackMessage {
             },
             style: "primary",
             action_id: "event_accept",
-            value: event.id,
+            value: event.iCalUId,
           },
           {
             type: "button",
@@ -85,7 +90,7 @@ export function composeMessage(event: OutlookEvent): SlackMessage {
               emoji: true,
             },
             action_id: "event_tentative",
-            value: event.id,
+            value: event.iCalUId,
           },
           {
             type: "button",
@@ -96,7 +101,7 @@ export function composeMessage(event: OutlookEvent): SlackMessage {
             },
             style: "danger",
             action_id: "event_decline",
-            value: event.id,
+            value: event.iCalUId,
           },
         ],
       },

@@ -1,12 +1,20 @@
 import { Dayjs } from "dayjs";
 
+export enum ResponseStatus {
+  ACCEPTED = "accept",
+  TENTATIVE = "tentativelyAccept",
+  DECLINED = "decline",
+  NONE = "none",
+}
+
 export interface Attendee {
   email: string;
-  status: "none" | "accepted" | "tentative" | "declined";
+  status: ResponseStatus;
 }
 
 export type OutlookEvent = {
   id: string;
+  iCalUId: string;
   subject: string;
   start: Dayjs;
   end: Dayjs;
@@ -16,6 +24,7 @@ export type OutlookEvent = {
 
 export type RawOutlookEvent = {
   id: string;
+  iCalUId: string;
   subject?: string;
   start?: { dateTime?: string };
   end?: { dateTime?: string };
@@ -29,7 +38,7 @@ export type RawOutlookEvent = {
       address?: string;
     };
     status?: {
-      response?: "none" | "accepted" | "tentative" | "declined";
+      response?: ResponseStatus;
     };
   }>;
 };

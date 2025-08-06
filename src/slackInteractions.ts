@@ -1,46 +1,46 @@
 import { App } from "@slack/bolt";
 import { updateEventResponse } from "./outlook";
+import { ResponseStatus } from "./types";
+import { getSlackUserEmail } from "./slackHelper";
+import { postThreadMessage } from "./slackMessaging";
 
 const RESPONSE_MAP = {
   event_accept: {
     message: "Hvala na dolasku, vidimo se! :party-blob:",
-    status: "accepted" as const,
+    status: ResponseStatus.ACCEPTED,
   },
   event_tentative: {
     message:
-      "All good, samo mi javi kad budeš siguran/na!:care:\nDržim ti mjesto u međuvremenu! :chair:",
-    status: "tentative" as const,
+      "Okej, samo javi kad budeš siguran/na!:care:\nDržim ti mjesto u međuvremenu! :chair:",
+    status: ResponseStatus.TENTATIVE,
   },
   event_decline: {
     message:
       "Žao mi je što ne možeš doći :sadge:\nVidimo se drugi put! :cvjetic:",
-    status: "declined" as const,
+    status: ResponseStatus.DECLINED,
   },
 };
 
 const handleResponse = async (actionId: string, { ack, body, client }) => {
   await ack();
   const { message, status } = RESPONSE_MAP[actionId];
-  const { value: eventId } = body.actions[0];
-  const { email: userEmail } = body.user;
-
-  const threadTs =
-    body.container?.thread_ts || body.message?.ts || body.container?.message_ts;
+  const { value: iCalUID } = body.actions[0];
 
   try {
-    await updateEventResponse(eventId, userEmail, status);
-    await client.chat.postMessage({
-      channel: body.channel.id,
-      text: message,
-      thread_ts: threadTs,
-    });
+    const userEmail = await getSlackUserEmail(client, body.user.id);
+
+    if (!iCalUID) throw new Error("Nedostaje ID dogadjaja");
+    if (!userEmail) throw new Error("Nije moguce dohvatiti email korisnika");
+
+    await updateEventResponse(iCalUID, userEmail, status);
+    await postThreadMessage(client, body, message);
   } catch (error) {
     console.error(`Error processing ${actionId}:`, error);
-    await client.chat.postMessage({
-      channel: body.channel.id,
-      text: `Došlo je do greške u obradi odgovora!`,
-      thread_ts: threadTs,
-    });
+    await postThreadMessage(
+      client,
+      body,
+      `Došlo je do greške u obradi odgovora!\nMolim te pokušaj ponovno kasnije`
+    );
   }
 };
 

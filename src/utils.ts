@@ -12,6 +12,7 @@ export const parseOutlookEvents = (responseData: {
   return responseData.value.map(
     (event): OutlookEvent => ({
       id: event.id,
+      iCalUId: event.iCalUId,
       subject: event.subject,
       start: convertToLocalTime(event.start?.dateTime),
       end: convertToLocalTime(event.end?.dateTime),

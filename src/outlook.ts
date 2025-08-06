@@ -1,10 +1,11 @@
 import { composeMessage, sendReminder } from "./slackMessaging";
 import { parseOutlookEvents } from "./utils";
 import { getNonResponders } from "./slackHelper";
-import { OutlookEvent } from "./types";
+import { OutlookEvent, ResponseStatus } from "./types";
 import timezone from "dayjs/plugin/timezone";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { decodeOutlookGlobalId } from "./decodeID";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -35,13 +36,13 @@ export async function getAccessToken() {
 }
 
 export async function fetchEvents(): Promise<OutlookEvent[]> {
-  const tomorrow = dayjs().add(1, "day").format("YYYY-MM-DD");
-  const dayAfterTomorrow = dayjs().add(2, "days").format("YYYY-MM-DD");
+  const tomorrow = dayjs().add(18, "day").format("YYYY-MM-DD");
+  const dayAfterTomorrow = dayjs().add(19, "days").format("YYYY-MM-DD");
   const filter = `start/dateTime ge '${tomorrow}T00:00:00' and end/dateTime lt '${dayAfterTomorrow}T00:00:00'`;
   const token = await getAccessToken();
 
   const response = await fetch(
-    `https://graph.microsoft.com/v1.0/users/${process.env.OUTLOOK_USER_EMAIL}/calendar/events?filter=${filter}&select=id,subject,start,end,organizer,attendees`,
+    `https://graph.microsoft.com/v1.0/users/${process.env.OUTLOOK_USER_EMAIL}/calendar/events?filter=${filter}&select=id,subject,start,end,organizer,attendees,iCalUId`,
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -59,7 +60,7 @@ export async function fetchEvents(): Promise<OutlookEvent[]> {
   const events = parseOutlookEvents(responseData);
 
   const testEvents = events.filter((event) =>
-    event.subject.includes("annoyabot-test")
+    event.subject.includes("Annoyabot-test")
   );
 
   return testEvents;
@@ -69,61 +70,83 @@ export async function processEvent(event: OutlookEvent) {
   const nonResponders = await getNonResponders(event);
   const message = composeMessage(event);
 
-  for (const user of nonResponders) {
-    await sendReminder(user.email, message);
-  }
+  await sendReminder(process.env.MY_EMAIL, message);
+
+  // for (const user of nonResponders) {
+  //   await sendReminder(user.email, message);
+  // }
 }
 
 export async function updateEventResponse(
-  eventId: string,
+  iCalUId: string,
   userEmail: string,
-  statusResponse: "accepted" | "tentative" | "declined"
+  statusResponse: ResponseStatus
 ) {
   const token = await getAccessToken();
+  const eventId = await getEventIdByICalUid(userEmail, iCalUId, token);
+  if (!eventId) {
+    throw new Error("Event not found for the given iCalUID");
+  }
 
-  const getUrl = `https://graph.microsoft.com/v1.0/users/${process.env.OUTLOOK_USER_EMAIL}/events/${eventId}?$select=id,attendees`;
-  const getResponse = await fetch(getUrl, {
+  const eventUrl = `https://graph.microsoft.com/v1.0/users/${userEmail}/events/${eventId}/${statusResponse}`;
+
+  try {
+    const response = await fetch(eventUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(
+        `Failed to update status: ${error.error?.message || "Unknown error"}`
+      );
+    }
+
+    console.log("Status updated successfully:");
+
+    return true;
+  } catch (error) {
+    console.error("Update failed:", {
+      eventId: eventId.substring(0, 8) + "...",
+      userEmail,
+      error: error.message,
+      stack: error.stack,
+    });
+    throw error;
+  }
+}
+
+export async function getEventIdByICalUid(
+  userEmail: string,
+  iCalUId: string,
+  token: string
+): Promise<string | null> {
+  const decoded = decodeOutlookGlobalId(iCalUId);
+  const queryId = decoded?.isOutlookId
+    ? `040000008200E00074C5B7101A82E008${iCalUId.substring(32)}`
+    : iCalUId;
+
+  const url = `https://graph.microsoft.com/v1.0/users/${userEmail}/calendarView?startDateTime=${encodeURIComponent(
+    new Date().toISOString()
+  )}&endDateTime=${encodeURIComponent(
+    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+  )}&$filter=iCalUId eq '${queryId}'&$select=id`;
+
+  const response = await fetch(url, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
   });
 
-  if (!getResponse.ok) {
-    throw new Error(`Failed to get event: ${getResponse.statusText}`);
+  if (!response.ok) {
+    console.error("Error fetching event by iCalUId:", await response.text());
+    return null;
   }
 
-  const event = await getResponse.json();
-
-  const updatedAttendees = event.attendees.map((attendee) => {
-    if (attendee.emailAddress.address === userEmail) {
-      return {
-        ...attendee,
-        status: {
-          response: statusResponse,
-          time: new Date().toISOString(),
-        },
-      };
-    }
-    return attendee;
-  });
-
-  const updateResponse = await fetch(
-    `https://graph.microsoft.com/v1.0/users/${process.env.OUTLOOK_USER_EMAIL}/events/${eventId}`,
-    {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        attendees: updatedAttendees,
-      }),
-    }
-  );
-
-  if (!updateResponse.ok) {
-    const errorData = await updateResponse.json();
-    console.error("Graph API Error:", errorData);
-    throw new Error(`Failed to update event: ${updateResponse.statusText}`);
-  }
+  const data = await response.json();
+  return data.value?.[0]?.id || null;
 }
