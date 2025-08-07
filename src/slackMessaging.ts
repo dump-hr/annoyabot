@@ -10,7 +10,7 @@ export async function sendReminder(userEmail: string, message: SlackMessage) {
 
   try {
     const userId = await getSlackIdByEmail(userEmail);
-    console.log(`Sending to ${userEmail} (Slack ID: ${userId})`);
+    console.log(`Sending to ${userEmail}`);
     await slack.chat.postMessage({
       channel: userId,
       ...message,
@@ -42,7 +42,7 @@ export function composeMessage(event: OutlookEvent): SlackMessage {
   const endDate = dayjs(event.end);
 
   const message: SlackMessage = {
-    text: `Ej odgovori na event: ${event.subject}`,
+    text: `Hey, dolazis li na: ${event.subject}?`,
     blocks: [
       {
         type: "header",
@@ -56,7 +56,7 @@ export function composeMessage(event: OutlookEvent): SlackMessage {
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `Nisi odgovorio/la na sljedeći event: :excuseme:\n\n*${
+          text: `Nisi odgovorio/la na sljedeći event:\n\n*${
             event.subject
           }*\n:date: ${startDate.format(
             "DD.MM.YYYY"

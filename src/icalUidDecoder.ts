@@ -8,7 +8,7 @@ export function decodeOutlookGlobalId(iCalUId: string): {
     return null;
   }
 
-  const outlookPrefix = "040000008200e00074c5b7101a82e008";
+  const outlookPrefix = process.env.OUTLOOK_ID_PREFIX;
   const prefix = iCalUId.toLowerCase().substring(0, 32);
 
   const isOutlookId = prefix === outlookPrefix;

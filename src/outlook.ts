@@ -1,11 +1,11 @@
 import { composeMessage, sendReminder } from "./slackMessaging";
+import { OutlookEvent, ResponseStatus } from "./types";
+import { decodeOutlookGlobalId } from "./icalUidDecoder";
 import { parseOutlookEvents } from "./utils";
 import { getNonResponders } from "./slackHelper";
-import { OutlookEvent, ResponseStatus } from "./types";
 import timezone from "dayjs/plugin/timezone";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { decodeOutlookGlobalId } from "./decodeID";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -36,13 +36,13 @@ export async function getAccessToken() {
 }
 
 export async function fetchEvents(): Promise<OutlookEvent[]> {
-  const tomorrow = dayjs().add(18, "day").format("YYYY-MM-DD");
-  const dayAfterTomorrow = dayjs().add(19, "days").format("YYYY-MM-DD");
+  const tomorrow = dayjs().add(17, "day").format("YYYY-MM-DD");
+  const dayAfterTomorrow = dayjs().add(18, "days").format("YYYY-MM-DD");
   const filter = `start/dateTime ge '${tomorrow}T00:00:00' and end/dateTime lt '${dayAfterTomorrow}T00:00:00'`;
   const token = await getAccessToken();
 
   const response = await fetch(
-    `https://graph.microsoft.com/v1.0/users/${process.env.OUTLOOK_USER_EMAIL}/calendar/events?filter=${filter}&select=id,subject,start,end,organizer,attendees,iCalUId`,
+    `${process.env.GRAPH_API_BASE}/users/${process.env.OUTLOOK_USER_EMAIL}/calendar/events?filter=${filter}&select=id,subject,start,end,organizer,attendees,iCalUId`,
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -58,7 +58,6 @@ export async function fetchEvents(): Promise<OutlookEvent[]> {
   }
 
   const events = parseOutlookEvents(responseData);
-  events.sort((a, b) => a.start.diff(b.start));
 
   const testEvents = events.filter((event) =>
     event.subject.includes("Annoyabot-test")
@@ -71,19 +70,11 @@ export async function processEvent(event: OutlookEvent) {
   const nonResponders = await getNonResponders(event);
   const message = composeMessage(event);
 
-<<<<<<< HEAD
   await sendReminder(process.env.MY_EMAIL, message);
 
   // for (const user of nonResponders) {
   //   await sendReminder(user.email, message);
   // }
-=======
-  //await sendReminder(process.env.MY_EMAIL, message);
-
-  for (const user of nonResponders) {
-    await sendReminder(user.email, message);
-  }
->>>>>>> 10d244fa865694bcc4db3229d2a086e9f2a388ce
 }
 
 export async function updateEventResponse(
@@ -92,15 +83,15 @@ export async function updateEventResponse(
   statusResponse: ResponseStatus
 ) {
   const token = await getAccessToken();
-  const eventId = await getEventIdByICalUid(userEmail, iCalUId, token);
+  const eventId = await getEventByICalUid(userEmail, iCalUId, token);
   if (!eventId) {
-    throw new Error("Event not found for the given iCalUID");
+    return { success: false, errorType: "EVENT_NOT_FOUND" };
   }
 
-  const eventUrl = `https://graph.microsoft.com/v1.0/users/${userEmail}/events/${eventId}/${statusResponse}`;
+  const eventUrl = `${process.env.GRAPH_API_BASE}/users/${userEmail}/events/${eventId}`;
 
   try {
-    const response = await fetch(eventUrl, {
+    const response = await fetch(`${eventUrl}/${statusResponse}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -115,35 +106,33 @@ export async function updateEventResponse(
       );
     }
 
-    console.log("Status updated successfully:");
-
-    return true;
+    return { success: true };
   } catch (error) {
-    console.error("Update failed:", {
-      eventId: eventId.substring(0, 8) + "...",
-      userEmail,
-      error: error.message,
-      stack: error.stack,
-    });
-    throw error;
+    console.error("Update failed:", error.message);
+    return { success: false, errorType: "UNKNOWN_ERROR" };
   }
 }
 
-export async function getEventIdByICalUid(
+export async function getEventByICalUid(
   userEmail: string,
   iCalUId: string,
   token: string
 ): Promise<string | null> {
   const decoded = decodeOutlookGlobalId(iCalUId);
   const queryId = decoded?.isOutlookId
-    ? `040000008200E00074C5B7101A82E008${iCalUId.substring(32)}`
+    ? `${process.env.ICAL_UID_PREFIX}${iCalUId.substring(32)}`
     : iCalUId;
 
-  const url = `https://graph.microsoft.com/v1.0/users/${userEmail}/calendarView?startDateTime=${encodeURIComponent(
-    new Date().toISOString()
-  )}&endDateTime=${encodeURIComponent(
-    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-  )}&$filter=iCalUId eq '${queryId}'&$select=id`;
+  const baseUrl = `${process.env.GRAPH_API_BASE}/users/${userEmail}/calendarView`;
+
+  const params = new URLSearchParams({
+    startDateTime: new Date().toISOString(),
+    endDateTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    $filter: `iCalUId eq '${queryId}'`,
+    $select: "id",
+  });
+
+  const url = `${baseUrl}?${params.toString()}`;
 
   const response = await fetch(url, {
     headers: {
@@ -157,5 +146,11 @@ export async function getEventIdByICalUid(
   }
 
   const data = await response.json();
-  return data.value?.[0]?.id || null;
+  const event = data.value?.[0];
+
+  if (!event) {
+    return null;
+  }
+
+  return event.id;
 }

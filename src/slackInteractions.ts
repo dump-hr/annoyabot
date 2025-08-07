@@ -1,8 +1,8 @@
-import { App } from "@slack/bolt";
 import { updateEventResponse } from "./outlook";
-import { ResponseStatus } from "./types";
 import { getSlackUserEmail } from "./slackHelper";
 import { postThreadMessage } from "./slackMessaging";
+import { ResponseStatus } from "./types";
+import { App } from "@slack/bolt";
 
 const RESPONSE_MAP = {
   event_accept: {
@@ -24,22 +24,37 @@ const RESPONSE_MAP = {
 const handleResponse = async (actionId: string, { ack, body, client }) => {
   await ack();
   const { message, status } = RESPONSE_MAP[actionId];
-  const { value: iCalUID } = body.actions[0];
+  const { value: iCalUId } = body.actions[0];
 
   try {
     const userEmail = await getSlackUserEmail(client, body.user.id);
-
-    if (!iCalUID) throw new Error("Nedostaje ID dogadjaja");
     if (!userEmail) throw new Error("Nije moguce dohvatiti email korisnika");
 
-    await updateEventResponse(iCalUID, userEmail, status);
+    const updateResult = await updateEventResponse(iCalUId, userEmail, status);
+
+    if (!updateResult.success) {
+      if (updateResult.errorType === "EVENT_NOT_FOUND") {
+        await postThreadMessage(
+          client,
+          body,
+          "Nisam našao event. Za vraćanje eventa slijedi korake: :face_with_monocle:\n" +
+            "1. Otvori <https://outlook.office.com/mail/deleteditems/|Deleted Items> :incoming_envelope:\n" +
+            "2. Pronađi email s eventom :satellite_antenna:\n" +
+            '3. Vrati ga u Inbox i klikni "Prihvati":rocket:"\n' +
+            "_Važno: Na mobitelu se možda neće prikazati opcija “Prihvati”. Otvori desktop verziju._"
+        );
+        return;
+      }
+      throw new Error("Ažuriranje nije uspjelo");
+    }
+
     await postThreadMessage(client, body, message);
   } catch (error) {
     console.error(`Error processing ${actionId}:`, error);
     await postThreadMessage(
       client,
       body,
-      `Došlo je do greške u obradi odgovora!\nMolim te pokušaj ponovno kasnije`
+      "Došlo je do greške u obradi odgovora!\nPokušaj ponovno kasnije. :politecat:"
     );
   }
 };
