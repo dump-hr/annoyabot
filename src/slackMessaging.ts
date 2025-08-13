@@ -20,6 +20,25 @@ export async function sendReminder(userEmail: string, message: SlackMessage) {
   }
 }
 
+export async function sendWithRetry(
+  sendFunction: () => Promise<void>,
+  retries = 3
+) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await sendFunction();
+      return;
+    } catch (err) {
+      console.warn(`Attempt ${i + 1} failed: ${err}`);
+      if (i < retries - 1) {
+        await new Promise((res) => setTimeout(res, 2 ** i * 1000));
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
 export async function postThreadMessage(client: any, body: any, text: string) {
   try {
     const threadTs =
@@ -40,34 +59,46 @@ export async function postThreadMessage(client: any, body: any, text: string) {
 export function composeMessage(event: OutlookEvent): SlackMessage {
   const startDate = dayjs(event.start);
   const endDate = dayjs(event.end);
+  const daysUntil = Math.ceil(dayjs(event.start).diff(dayjs(), "day", true));
+
+  let notificationText: string;
+  let headerText: string;
+  let bodyIntro: string;
+  let contextText: string;
+
+  if (daysUntil === 3) {
+    notificationText = `Event za 3 dana, a od tebe ni glasa :pensive:`;
+    headerText = `Još tri dana i tri noći!`;
+    bodyIntro = "Nisi odgovorio/la na sljedeći event :upside_down_face:";
+    contextText = ":hourglass: Rok za odgovor: još 2 (i po) dana!";
+  } else if (daysUntil === 1) {
+    notificationText = `Dolaziš li na event? :thinking_face:`;
+    headerText = `Do sutra imaš vremena… ili nema...`;
+    bodyIntro = "Ako nisi siguran/na, stisni na možda :face_with_rolling_eyes:";
+    contextText = ":hourglass: Rok za odgovor: do sutra!";
+  } else {
+    return null;
+  }
 
   const message: SlackMessage = {
-    text: `Hey, dolazis li na: ${event.subject}?`,
+    text: notificationText,
     blocks: [
       {
         type: "header",
-        text: {
-          type: "plain_text",
-          text: "Kralju odgovori na event :neutral_face::exclamation:",
-          emoji: true,
-        },
+        text: { type: "plain_text", text: headerText, emoji: true },
       },
       {
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `Nisi odgovorio/la na sljedeći event:\n\n*${
-            event.subject
-          }*\n:date: ${startDate.format(
+          text: `${bodyIntro}\n\n*${event.subject}*\n:date: ${startDate.format(
             "DD.MM.YYYY"
           )} | :clock3: ${startDate.format("HH:mm")} - ${endDate.format(
             "HH:mm"
           )}`,
         },
       },
-      {
-        type: "divider",
-      },
+      { type: "divider" },
       {
         type: "actions",
         elements: [
@@ -110,7 +141,7 @@ export function composeMessage(event: OutlookEvent): SlackMessage {
         elements: [
           {
             type: "mrkdwn",
-            text: "⌛ Rok za odgovor: do sutra!",
+            text: contextText,
           },
         ],
       },

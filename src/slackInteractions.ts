@@ -10,8 +10,7 @@ const RESPONSE_MAP = {
     status: ResponseStatus.ACCEPTED,
   },
   event_tentative: {
-    message:
-      "Okej, samo javi kad budeš siguran/na!:care:\nDržim ti mjesto u međuvremenu! :chair:",
+    message: "Okej, držim ti mjesto u međuvremenu! :chair:",
     status: ResponseStatus.TENTATIVE,
   },
   event_decline: {
@@ -32,20 +31,17 @@ const handleResponse = async (actionId: string, { ack, body, client }) => {
 
     const updateResult = await updateEventResponse(iCalUId, userEmail, status);
 
-    if (!updateResult.success) {
-      if (updateResult.errorType === "EVENT_NOT_FOUND") {
-        await postThreadMessage(
-          client,
-          body,
-          "Nisam našao event. Za vraćanje eventa slijedi korake: :face_with_monocle:\n" +
-            "1. Otvori <https://outlook.office.com/mail/deleteditems/|Deleted Items> :incoming_envelope:\n" +
-            "2. Pronađi email s eventom :satellite_antenna:\n" +
-            '3. Vrati ga u Inbox i klikni "Prihvati":rocket:"\n' +
-            "_Važno: Na mobitelu se možda neće prikazati opcija “Prihvati”. Otvori desktop verziju._"
-        );
-        return;
-      }
-      throw new Error("Ažuriranje nije uspjelo");
+    if (!updateResult.success && updateResult.errorType === "EVENT_NOT_FOUND") {
+      await postThreadMessage(
+        client,
+        body,
+        "Nisam našao event. Za vraćanje eventa slijedi korake: :face_with_monocle:\n" +
+          "1. Otvori <https://outlook.office.com/mail/deleteditems/|Deleted Items> :incoming_envelope:\n" +
+          "2. Pronađi email s eventom :satellite_antenna:\n" +
+          '3. Vrati ga u Inbox i klikni "Prihvati":rocket:"\n' +
+          "_Važno: Na mobitelu se možda neće prikazati opcija “Prihvati”. Otvori desktop verziju._"
+      );
+      return;
     }
 
     await postThreadMessage(client, body, message);

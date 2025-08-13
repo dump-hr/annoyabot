@@ -1,4 +1,4 @@
-import { composeMessage, sendReminder } from "./slackMessaging";
+import { composeMessage, sendReminder, sendWithRetry } from "./slackMessaging";
 import { OutlookEvent, ResponseStatus } from "./types";
 import { decodeOutlookGlobalId } from "./icalUidDecoder";
 import { parseOutlookEvents } from "./utils";
@@ -36,9 +36,9 @@ export async function getAccessToken() {
 }
 
 export async function fetchEvents(): Promise<OutlookEvent[]> {
-  const tomorrow = dayjs().add(17, "day").format("YYYY-MM-DD");
-  const dayAfterTomorrow = dayjs().add(18, "days").format("YYYY-MM-DD");
-  const filter = `start/dateTime ge '${tomorrow}T00:00:00' and end/dateTime lt '${dayAfterTomorrow}T00:00:00'`;
+  const start = dayjs().startOf("day").format("YYYY-MM-DD");
+  const end = dayjs().add(15, "day").endOf("day").format("YYYY-MM-DD");
+  const filter = `start/dateTime ge '${start}T00:00:00' and end/dateTime le '${end}T23:59:59'`;
   const token = await getAccessToken();
 
   const response = await fetch(
@@ -70,10 +70,22 @@ export async function processEvent(event: OutlookEvent) {
   const nonResponders = await getNonResponders(event);
   const message = composeMessage(event);
 
-  await sendReminder(process.env.MY_EMAIL, message);
+  if (message) {
+    await sendWithRetry(() => sendReminder(process.env.MY_EMAIL, message));
+  } else {
+    console.log(`Skipping ${event.subject}, not 3 or 1 day before.`);
+  }
+
+  //await sendReminder(process.env.MY_EMAIL, message);
 
   // for (const user of nonResponders) {
-  //   await sendReminder(user.email, message);
+  //   try {
+  //     await sendReminder(user.email, message);
+  //   } catch {
+  //     await sendReminder(user.email, message).catch(() =>
+  //       console.error(`Failed to send to ${user.email} even after retry`)
+  //     );
+  //   }
   // }
 }
 
@@ -97,6 +109,9 @@ export async function updateEventResponse(
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
+      body: JSON.stringify({
+        sendResponse: false,
+      }),
     });
 
     if (!response.ok) {
