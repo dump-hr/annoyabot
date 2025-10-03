@@ -20,7 +20,22 @@ const RESPONSE_MAP = {
   },
 };
 
-const handleResponse = async (actionId: string, { ack, body, client }) => {
+type ResponseAction = keyof typeof RESPONSE_MAP;
+
+const EVENT_NOT_FOUND_MESSAGE =
+  "Nisam našao event. Za vraćanje eventa slijedi korake: :face_with_monocle:\n" +
+  "1. Otvori <https://outlook.office.com/mail/deleteditems/|Deleted Items> :incoming_envelope:\n" +
+  "2. Pronađi email s eventom :satellite_antenna:\n" +
+  '3. Vrati ga u Inbox i klikni "Prihvati" :rocket:\n' +
+  '_Važno: Na mobitelu se možda neće prikazati opcija "Prihvati". Otvori desktop verziju._';
+
+const ERROR_MESSAGE =
+  "Došlo je do greške u obradi odgovora!\nPokušaj ponovno kasnije. :politecat:";
+
+export const handleResponse = async (
+  actionId: string,
+  { ack, body, client }
+) => {
   await ack();
   const { message, status } = RESPONSE_MAP[actionId];
   const { value: iCalUId } = body.actions[0];
@@ -32,26 +47,14 @@ const handleResponse = async (actionId: string, { ack, body, client }) => {
     const updateResult = await updateEventResponse(iCalUId, userEmail, status);
 
     if (!updateResult.success && updateResult.errorType === "EVENT_NOT_FOUND") {
-      await postThreadMessage(
-        client,
-        body,
-        "Nisam našao event. Za vraćanje eventa slijedi korake: :face_with_monocle:\n" +
-          "1. Otvori <https://outlook.office.com/mail/deleteditems/|Deleted Items> :incoming_envelope:\n" +
-          "2. Pronađi email s eventom :satellite_antenna:\n" +
-          '3. Vrati ga u Inbox i klikni "Prihvati":rocket:"\n' +
-          "_Važno: Na mobitelu se možda neće prikazati opcija “Prihvati”. Otvori desktop verziju._"
-      );
+      await postThreadMessage(client, body, EVENT_NOT_FOUND_MESSAGE);
       return;
     }
 
     await postThreadMessage(client, body, message);
   } catch (error) {
     console.error(`Error processing ${actionId}:`, error);
-    await postThreadMessage(
-      client,
-      body,
-      "Došlo je do greške u obradi odgovora!\nPokušaj ponovno kasnije. :politecat:"
-    );
+    await postThreadMessage(client, body, ERROR_MESSAGE);
   }
 };
 

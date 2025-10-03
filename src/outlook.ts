@@ -1,4 +1,4 @@
-import { composeMessage, sendReminder, sendWithRetry } from "./slackMessaging";
+import { composeMessage, sendReminder } from "./slackMessaging";
 import { OutlookEvent, ResponseStatus } from "./types";
 import { decodeOutlookGlobalId } from "./icalUidDecoder";
 import { parseOutlookEvents } from "./utils";
@@ -12,8 +12,8 @@ dayjs.extend(timezone);
 
 export async function getAccessToken() {
   const params = new URLSearchParams({
-    client_id: process.env.OUTLOOK_CLIENT_ID!,
-    client_secret: process.env.OUTLOOK_CLIENT_SECRET!,
+    client_id: process.env.OUTLOOK_CLIENT_ID,
+    client_secret: process.env.OUTLOOK_CLIENT_SECRET,
     scope: "https://graph.microsoft.com/.default",
     grant_type: "client_credentials",
   });
@@ -37,9 +37,11 @@ export async function getAccessToken() {
 
 export async function fetchEvents(): Promise<OutlookEvent[]> {
   const start = dayjs().startOf("day").format("YYYY-MM-DD");
-  const end = dayjs().add(15, "day").endOf("day").format("YYYY-MM-DD");
+  const end = dayjs().add(11, "day").endOf("day").format("YYYY-MM-DD");
   const filter = `start/dateTime ge '${start}T00:00:00' and end/dateTime le '${end}T23:59:59'`;
   const token = await getAccessToken();
+
+  console.log("filter", filter);
 
   const response = await fetch(
     `${process.env.GRAPH_API_BASE}/users/${process.env.OUTLOOK_USER_EMAIL}/calendar/events?filter=${filter}&select=id,subject,start,end,organizer,attendees,iCalUId`,
@@ -59,33 +61,37 @@ export async function fetchEvents(): Promise<OutlookEvent[]> {
 
   const events = parseOutlookEvents(responseData);
 
-  const testEvents = events.filter((event) =>
-    event.subject.includes("Annoyabot-test")
-  );
-
-  return testEvents;
+  return events;
 }
 
 export async function processEvent(event: OutlookEvent) {
   const nonResponders = await getNonResponders(event);
   const message = composeMessage(event);
 
-  if (message) {
-    await sendWithRetry(() => sendReminder(process.env.MY_EMAIL, message));
-  } else {
+  if (!message) {
     console.log(`Skipping ${event.subject}, not 3 or 1 day before.`);
+    return;
   }
 
-  //await sendReminder(process.env.MY_EMAIL, message);
+  try {
+    await sendReminder(process.env.MY_EMAIL, message);
+    console.log(`Sent reminder for ${event.subject} me`);
+  } catch (err) {
+    console.error(`Failed to send reminder for ${event.subject}`, err);
+  }
 
   // for (const user of nonResponders) {
-  //   try {
-  //     await sendReminder(user.email, message);
-  //   } catch {
-  //     await sendReminder(user.email, message).catch(() =>
-  //       console.error(`Failed to send to ${user.email} even after retry`)
-  //     );
-  //   }
+
+  // if (user.email === event.organizer) {
+  //   console.log(`Skipping organizer: ${user.email}`);
+  //   continue;
+  // }
+
+  // try {
+  //   await sendReminder(user.email, message);
+  //   console.log(`Sent to ${user.email}`);
+  // } catch (err) {
+  //   console.error(`Failed to send to ${user.email}`, err);
   // }
 }
 

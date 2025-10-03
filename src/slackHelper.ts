@@ -1,5 +1,5 @@
-import { WebClient } from "@slack/web-api";
 import { OutlookEvent, ResponseStatus } from "./types";
+import { WebClient } from "@slack/web-api";
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -9,8 +9,9 @@ export const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
 export async function getNonResponders(event: OutlookEvent) {
   return event.attendees.filter(
     (attendee) =>
-      attendee.status === ResponseStatus.NONE &&
-      attendee.email !== event.organizer
+      attendee.email.toLowerCase() !== event.organizer.toLowerCase() &&
+      (attendee.status === ResponseStatus.NONE ||
+        attendee.status === ResponseStatus.TENTATIVE)
   );
 }
 

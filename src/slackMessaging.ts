@@ -9,8 +9,7 @@ export async function sendReminder(userEmail: string, message: SlackMessage) {
   }
 
   try {
-    const userId = await getSlackIdByEmail(userEmail);
-    console.log(`Sending to ${userEmail}`);
+    const userId = await getSlackIdByEmail(process.env.MY_EMAIL);
     await slack.chat.postMessage({
       channel: userId,
       ...message,
@@ -66,14 +65,14 @@ export function composeMessage(event: OutlookEvent): SlackMessage {
   let bodyIntro: string;
   let contextText: string;
 
-  if (daysUntil === 3) {
+  if (daysUntil === 11) {
     notificationText = `Event za 3 dana, a od tebe ni glasa :pensive:`;
     headerText = `Još tri dana i tri noći!`;
     bodyIntro = "Nisi odgovorio/la na sljedeći event :upside_down_face:";
     contextText = ":hourglass: Rok za odgovor: još 2 (i po) dana!";
-  } else if (daysUntil === 1) {
+  } else if (daysUntil === 9) {
     notificationText = `Dolaziš li na event? :thinking_face:`;
-    headerText = `Do sutra imaš vremena… ili nema...`;
+    headerText = `Do sutra imaš vremena… ili nemaš...`;
     bodyIntro = "Ako nisi siguran/na, stisni na možda :face_with_rolling_eyes:";
     contextText = ":hourglass: Rok za odgovor: do sutra!";
   } else {
