@@ -19,25 +19,6 @@ export async function sendReminder(userEmail: string, message: SlackMessage) {
   }
 }
 
-export async function sendWithRetry(
-  sendFunction: () => Promise<void>,
-  retries = 3
-) {
-  for (let i = 0; i < retries; i++) {
-    try {
-      await sendFunction();
-      return;
-    } catch (err) {
-      console.warn(`Attempt ${i + 1} failed: ${err}`);
-      if (i < retries - 1) {
-        await new Promise((res) => setTimeout(res, 2 ** i * 1000));
-      } else {
-        throw err;
-      }
-    }
-  }
-}
-
 export async function postThreadMessage(client: any, body: any, text: string) {
   try {
     const threadTs =
@@ -65,12 +46,12 @@ export function composeMessage(event: OutlookEvent): SlackMessage {
   let bodyIntro: string;
   let contextText: string;
 
-  if (daysUntil === 11) {
+  if (daysUntil === 3) {
     notificationText = `Event za 3 dana, a od tebe ni glasa :pensive:`;
     headerText = `Još tri dana i tri noći!`;
     bodyIntro = "Nisi odgovorio/la na sljedeći event :upside_down_face:";
     contextText = ":hourglass: Rok za odgovor: još 2 (i po) dana!";
-  } else if (daysUntil === 9) {
+  } else if (daysUntil === 1) {
     notificationText = `Dolaziš li na event? :thinking_face:`;
     headerText = `Do sutra imaš vremena… ili nemaš...`;
     bodyIntro = "Ako nisi siguran/na, stisni na možda :face_with_rolling_eyes:";

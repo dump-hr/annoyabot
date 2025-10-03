@@ -20,8 +20,6 @@ const RESPONSE_MAP = {
   },
 };
 
-type ResponseAction = keyof typeof RESPONSE_MAP;
-
 const EVENT_NOT_FOUND_MESSAGE =
   "Nisam našao event. Za vraćanje eventa slijedi korake: :face_with_monocle:\n" +
   "1. Otvori <https://outlook.office.com/mail/deleteditems/|Deleted Items> :incoming_envelope:\n" +

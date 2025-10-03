@@ -5,17 +5,12 @@ export async function CheckEvents(
   _myTimer: Timer,
   context: InvocationContext
 ): Promise<void> {
-  context.log("Timer function running...fetching events...");
-
   try {
     const events = await fetchEvents();
-    context.log(`Found ${events.length} events to process`);
 
     for (const event of events) {
       await processEventWithRetry(event, context);
     }
-
-    context.log("Event processing completed");
   } catch (error) {
     context.error("Failed to fetch events:", error);
     throw error;
@@ -29,7 +24,7 @@ async function processEventWithRetry(
 ) {
   for (let i = 0; i < maxRetries; i++) {
     try {
-      await processEvent(event);
+      await processEvent(event, context);
       return;
     } catch (error) {
       if (i === maxRetries - 1) throw error;
@@ -39,13 +34,7 @@ async function processEventWithRetry(
   }
 }
 
-// app.timer("CheckEvents", {
-//   schedule: "0 0 9 * * *",
-//   handler: CheckEvents,
-// });
-
 app.timer("CheckEvents", {
   schedule: "0 0 9 * * *",
-  runOnStartup: true,
   handler: CheckEvents,
 });

@@ -6,6 +6,7 @@ import { getNonResponders } from "./slackHelper";
 import timezone from "dayjs/plugin/timezone";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { InvocationContext } from "@azure/functions";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -37,11 +38,9 @@ export async function getAccessToken() {
 
 export async function fetchEvents(): Promise<OutlookEvent[]> {
   const start = dayjs().startOf("day").format("YYYY-MM-DD");
-  const end = dayjs().add(11, "day").endOf("day").format("YYYY-MM-DD");
+  const end = dayjs().add(4, "day").endOf("day").format("YYYY-MM-DD");
   const filter = `start/dateTime ge '${start}T00:00:00' and end/dateTime le '${end}T23:59:59'`;
   const token = await getAccessToken();
-
-  console.log("filter", filter);
 
   const response = await fetch(
     `${process.env.GRAPH_API_BASE}/users/${process.env.OUTLOOK_USER_EMAIL}/calendar/events?filter=${filter}&select=id,subject,start,end,organizer,attendees,iCalUId`,
@@ -64,35 +63,28 @@ export async function fetchEvents(): Promise<OutlookEvent[]> {
   return events;
 }
 
-export async function processEvent(event: OutlookEvent) {
+export async function processEvent(
+  event: OutlookEvent,
+  context?: InvocationContext
+) {
   const nonResponders = await getNonResponders(event);
   const message = composeMessage(event);
 
   if (!message) {
-    console.log(`Skipping ${event.subject}, not 3 or 1 day before.`);
     return;
   }
 
-  try {
-    await sendReminder(process.env.MY_EMAIL, message);
-    console.log(`Sent reminder for ${event.subject} me`);
-  } catch (err) {
-    console.error(`Failed to send reminder for ${event.subject}`, err);
+  for (const user of nonResponders) {
+    if (user.email === event.organizer) {
+      continue;
+    }
+
+    try {
+      await sendReminder(user.email, message);
+    } catch (err) {
+      context?.error(`Failed to send to ${user.email}:`, err);
+    }
   }
-
-  // for (const user of nonResponders) {
-
-  // if (user.email === event.organizer) {
-  //   console.log(`Skipping organizer: ${user.email}`);
-  //   continue;
-  // }
-
-  // try {
-  //   await sendReminder(user.email, message);
-  //   console.log(`Sent to ${user.email}`);
-  // } catch (err) {
-  //   console.error(`Failed to send to ${user.email}`, err);
-  // }
 }
 
 export async function updateEventResponse(

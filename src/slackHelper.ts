@@ -10,8 +10,7 @@ export async function getNonResponders(event: OutlookEvent) {
   return event.attendees.filter(
     (attendee) =>
       attendee.email.toLowerCase() !== event.organizer.toLowerCase() &&
-      (attendee.status === ResponseStatus.NONE ||
-        attendee.status === ResponseStatus.TENTATIVE)
+      attendee.status === ResponseStatus.NONE
   );
 }
 
