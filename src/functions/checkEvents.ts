@@ -35,6 +35,6 @@ async function processEventWithRetry(
 }
 
 app.timer("CheckEvents", {
-  schedule: "0 0 9 * * *",
+  schedule: "0 0 7 * * *",
   handler: CheckEvents,
 });

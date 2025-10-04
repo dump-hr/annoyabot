@@ -43,7 +43,7 @@ export async function SlackResponse(
     }
 
     context.warn("Unknown payload type:", payload.type);
-    return { status: 200, body: "OK" };
+    return { status: 400, body: "Unknown payload type" };
   } catch (error) {
     context.error("SlackHandler error:", error);
     return {

@@ -114,9 +114,7 @@ export async function updateEventResponse(
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(
-        `Failed to update status: ${error.error?.message || "Unknown error"}`
-      );
+      throw new Error(`Failed to update status: ${error.error?.message}`);
     }
 
     return { success: true };
