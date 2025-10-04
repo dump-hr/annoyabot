@@ -9,7 +9,7 @@ export async function sendReminder(userEmail: string, message: SlackMessage) {
   }
 
   try {
-    const userId = await getSlackIdByEmail(process.env.MY_EMAIL);
+    const userId = await getSlackIdByEmail(userEmail);
     await slack.chat.postMessage({
       channel: userId,
       ...message,
