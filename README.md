@@ -1,27 +1,44 @@
-Annoyabot
-=========
+# Annoyabot
 
 Slack bot that reminds users about pending Outlook calendar invites and lets them respond directly from Slack DMs.
 
-Development
------------
+## Development
 
 Node.js >=20 and Azurite required to run the project.
-`npm install  npm run build`
+
+```bash
+npm install
+npm run build
+```
 
 Start Azurite (in a separate terminal):
-`azurite`
+
+```bash
+azurite #(or npx azurite)
+```
 
 Run the function app:
-`func start`
 
-Deployment
-----------
+```bash
+func start
+```
 
-This bot is deployed as a **Timer Trigger Function** using @azure/functions.
+## Deployment
+
+This bot is deployed as a **Timer Trigger & HTTP Trigger Function** using @azure/functions.
 
 Set up environment:
-`nvm install 20  nvm use 20  npm install --global`
+
+```bash
+nvm install 20
+nvm use 20
+npm install
+```
 
 Build project:
-`git clone https://github.com/dump-hr/annoyabot  cp .env.example .env  yarn build`
+
+```bash
+git clone https://github.com/dump-hr/annoyabot
+cp .env.example .env
+npm run build
+```

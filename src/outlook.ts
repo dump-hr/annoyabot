@@ -68,16 +68,13 @@ export async function processEvent(
   context?: InvocationContext
 ) {
   const nonResponders = await getNonResponders(event);
-  const message = composeMessage(event);
+  if (nonResponders.length === 0) return;
 
-  if (!message) {
-    return;
-  }
+  const message = composeMessage(event);
+  if (!message) return;
 
   for (const user of nonResponders) {
-    if (user.email === event.organizer) {
-      continue;
-    }
+    if (user.email === event.organizer) continue;
 
     try {
       await sendReminder(user.email, message);

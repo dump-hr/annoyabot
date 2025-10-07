@@ -10,10 +10,11 @@ export async function sendReminder(userEmail: string, message: SlackMessage) {
 
   try {
     const userId = await getSlackIdByEmail(userEmail);
-    await slack.chat.postMessage({
+    const result = await slack.chat.postMessage({
       channel: userId,
       ...message,
     });
+    console.log(`Message sent successfully. TS: ${result.ts}`);
   } catch (error) {
     console.error(`Failed to send to ${userEmail}:`, error);
   }
@@ -57,6 +58,7 @@ export function composeMessage(event: OutlookEvent): SlackMessage {
     bodyIntro = "Ako nisi siguran/na, stisni na možda :face_with_rolling_eyes:";
     contextText = ":hourglass: Rok za odgovor: do sutra!";
   } else {
+    console.log(`ComposeMessage: daysUntil ${daysUntil}, skipping message.`);
     return null;
   }
 
