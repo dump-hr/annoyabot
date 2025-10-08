@@ -1,23 +1,51 @@
 import { OutlookEvent, SlackMessage } from "./types";
 import { getSlackIdByEmail, slack } from "./slackHelper";
 import dayjs from "dayjs";
+import { BlobServiceClient, ContainerClient } from "@azure/storage-blob";
+
+const blobConnectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
+const containerName = "slack-message-locks";
+
+const blobServiceClient =
+  BlobServiceClient.fromConnectionString(blobConnectionString);
+const containerClient: ContainerClient =
+  blobServiceClient.getContainerClient(containerName);
+
+async function ensureContainer() {
+  const exists = await containerClient.exists();
+  if (!exists) {
+    await containerClient.create();
+  }
+}
 
 export async function sendReminder(userEmail: string, message: SlackMessage) {
-  if (!userEmail) {
-    console.error("No email provided");
-    return;
-  }
+  if (!userEmail) return;
+
+  await ensureContainer();
+
+  const now = new Date();
+  const dateKey = now.toISOString().slice(0, 10);
+  const blobName = `${userEmail}-${dateKey}.lock`;
+
+  const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
   try {
-    const userId = await getSlackIdByEmail(userEmail);
-    const result = await slack.chat.postMessage({
-      channel: userId,
-      ...message,
-    });
-    console.log(`Message sent successfully. TS: ${result.ts}`);
-  } catch (error) {
-    console.error(`Failed to send to ${userEmail}:`, error);
+    await blockBlobClient.upload("", 0, { conditions: { ifNoneMatch: "*" } });
+  } catch (err: any) {
+    if (err.statusCode === 412) {
+      console.log(`Poruka za ${userEmail} već poslana danas.`);
+      return;
+    }
+    throw err;
   }
+
+  const userId = await getSlackIdByEmail(userEmail);
+  const result = await slack.chat.postMessage({
+    channel: userId,
+    ...message,
+  });
+
+  console.log(`Message sent successfully to ${userEmail}. TS: ${result.ts}`);
 }
 
 export async function postThreadMessage(client: any, body: any, text: string) {
@@ -37,7 +65,7 @@ export async function postThreadMessage(client: any, body: any, text: string) {
   }
 }
 
-export function composeMessage(event: OutlookEvent): SlackMessage {
+export function composeMessage(event: OutlookEvent): SlackMessage | null {
   const startDate = dayjs(event.start);
   const endDate = dayjs(event.end);
   const daysUntil = Math.ceil(dayjs(event.start).diff(dayjs(), "day", true));

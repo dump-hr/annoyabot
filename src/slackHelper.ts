@@ -7,11 +7,16 @@ dotenv.config();
 export const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
 
 export async function getNonResponders(event: OutlookEvent) {
-  return event.attendees.filter(
+  const nonResponders = event.attendees.filter(
     (attendee) =>
       attendee.email.toLowerCase() !== event.organizer.toLowerCase() &&
       attendee.status === ResponseStatus.NONE
   );
+  console.log(
+    `Event '${event.subject}' has ${nonResponders.length} non-responders.`
+  );
+
+  return nonResponders;
 }
 
 export async function getSlackIdByEmail(email: string): Promise<string> {

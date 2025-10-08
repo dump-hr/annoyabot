@@ -59,6 +59,7 @@ export async function fetchEvents(): Promise<OutlookEvent[]> {
   }
 
   const events = parseOutlookEvents(responseData);
+  console.log(`Fetched ${events.length} events from Outlook.`);
 
   return events;
 }
