@@ -18,10 +18,27 @@ async function ensureContainer() {
   }
 }
 
+async function cleanupOldLocks(daysToKeep = 1) {
+  for await (const blob of containerClient.listBlobsFlat()) {
+    const blobDate = blob.name.split("-").pop()?.replace(".lock", "");
+    if (!blobDate) continue;
+
+    const blobTime = new Date(blobDate).getTime();
+    const now = Date.now();
+    const diffDays = (now - blobTime) / (1000 * 60 * 60 * 24);
+
+    if (diffDays > daysToKeep) {
+      await containerClient.deleteBlob(blob.name);
+      console.log(`Deleted old lock: ${blob.name}`);
+    }
+  }
+}
+
 export async function sendReminder(userEmail: string, message: SlackMessage) {
   if (!userEmail) return;
 
   await ensureContainer();
+  await cleanupOldLocks();
 
   const now = new Date();
   const dateKey = now.toISOString().slice(0, 10);
@@ -33,7 +50,7 @@ export async function sendReminder(userEmail: string, message: SlackMessage) {
     await blockBlobClient.upload("", 0, { conditions: { ifNoneMatch: "*" } });
   } catch (err: any) {
     if (err.statusCode === 412) {
-      console.log(`Poruka za ${userEmail} već poslana danas.`);
+      console.log(`Message for ${userEmail} was already sent.`);
       return;
     }
     throw err;
