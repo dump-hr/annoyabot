@@ -37,7 +37,7 @@ async function cleanupOldLocks(daysToKeep = 1) {
 export async function sendReminder(
   userEmail: string,
   message: SlackMessage,
-  iCalUID: string
+  event: OutlookEvent
 ) {
   if (!userEmail) return;
 
@@ -46,7 +46,7 @@ export async function sendReminder(
 
   const now = new Date();
   const dateKey = now.toISOString().slice(0, 10);
-  const blobName = `${userEmail}-${iCalUID}-${dateKey}.lock`;
+  const blobName = `${userEmail}-${event.iCalUId}-${dateKey}.lock`;
 
   const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
