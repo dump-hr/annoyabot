@@ -34,7 +34,11 @@ async function cleanupOldLocks(daysToKeep = 1) {
   }
 }
 
-export async function sendReminder(userEmail: string, message: SlackMessage) {
+export async function sendReminder(
+  userEmail: string,
+  message: SlackMessage,
+  iCalUID: string
+) {
   if (!userEmail) return;
 
   await ensureContainer();
@@ -42,7 +46,7 @@ export async function sendReminder(userEmail: string, message: SlackMessage) {
 
   const now = new Date();
   const dateKey = now.toISOString().slice(0, 10);
-  const blobName = `${userEmail}-${dateKey}.lock`;
+  const blobName = `${userEmail}-${iCalUID}-${dateKey}.lock`;
 
   const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
@@ -50,7 +54,9 @@ export async function sendReminder(userEmail: string, message: SlackMessage) {
     await blockBlobClient.upload("", 0, { conditions: { ifNoneMatch: "*" } });
   } catch (err: any) {
     if (err.statusCode === 412) {
-      console.log(`Message for ${userEmail} was already sent.`);
+      console.log(
+        `Message for ${userEmail}, event: ${event.subject} was already sent.`
+      );
       return;
     }
     throw err;
@@ -62,7 +68,9 @@ export async function sendReminder(userEmail: string, message: SlackMessage) {
     ...message,
   });
 
-  console.log(`Message sent successfully to ${userEmail}. TS: ${result.ts}`);
+  console.log(
+    `Message sent successfully to ${userEmail} for event ${event.subject}. TS: ${result.ts}`
+  );
 }
 
 export async function postThreadMessage(client: any, body: any, text: string) {

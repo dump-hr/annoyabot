@@ -78,7 +78,7 @@ export async function processEvent(
     if (user.email === event.organizer) continue;
 
     try {
-      await sendReminder(user.email, message);
+      await sendReminder(user.email, message, event);
     } catch (err) {
       context?.error(`Failed to send to ${user.email}:`, err);
     }
