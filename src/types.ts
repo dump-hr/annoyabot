@@ -81,3 +81,10 @@ export type SlackMessage = {
   text: string;
   blocks: SlackBlock[];
 };
+
+export type ReminderType = "3days" | "1day";
+
+export interface ComposedReminder {
+  message: SlackMessage;
+  reminderType: ReminderType;
+}

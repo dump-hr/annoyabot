@@ -70,15 +70,24 @@ export async function processEvent(
 ) {
   const nonResponders = await getNonResponders(event);
   if (nonResponders.length === 0) return;
+  console.log(
+    `📋 Event "${event.subject}" - Non-responders:`,
+    nonResponders.map((u) => u.email)
+  );
 
-  const message = composeMessage(event);
-  if (!message) return;
+  const composed = composeMessage(event);
+
+  if (!composed) {
+    return;
+  }
+
+  const { message, reminderType } = composed;
 
   for (const user of nonResponders) {
     if (user.email === event.organizer) continue;
 
     try {
-      await sendReminder(user.email, message, event);
+      await sendReminder(user.email, message, event, reminderType);
     } catch (err) {
       context?.error(`Failed to send to ${user.email}:`, err);
     }

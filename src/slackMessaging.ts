@@ -1,4 +1,9 @@
-import { OutlookEvent, SlackMessage } from "./types";
+import {
+  ComposedReminder,
+  OutlookEvent,
+  ReminderType,
+  SlackMessage,
+} from "./types";
 import { getSlackIdByEmail, slack } from "./slackHelper";
 import dayjs from "dayjs";
 import { BlobServiceClient, ContainerClient } from "@azure/storage-blob";
@@ -20,16 +25,15 @@ async function ensureContainer() {
 
 async function cleanupOldLocks(daysToKeep = 1) {
   for await (const blob of containerClient.listBlobsFlat()) {
-    const blobDate = blob.name.split("-").pop()?.replace(".lock", "");
-    if (!blobDate) continue;
+    if (!blob.properties.createdOn) continue;
 
-    const blobTime = new Date(blobDate).getTime();
-    const now = Date.now();
-    const diffDays = (now - blobTime) / (1000 * 60 * 60 * 24);
+    const ageInDays =
+      (Date.now() - blob.properties.createdOn.getTime()) /
+      (1000 * 60 * 60 * 24);
 
-    if (diffDays > daysToKeep) {
-      await containerClient.deleteBlob(blob.name);
-      console.log(`Deleted old lock: ${blob.name}`);
+    if (ageInDays > daysToKeep) {
+      await containerClient.deleteBlob(blob.name).catch(() => {});
+      console.log(`Deleted: ${blob.name}`);
     }
   }
 }
@@ -37,23 +41,22 @@ async function cleanupOldLocks(daysToKeep = 1) {
 export async function sendReminder(
   userEmail: string,
   message: SlackMessage,
-  event: OutlookEvent
+  event: OutlookEvent,
+  reminderType: "3days" | "1day"
 ) {
   if (!userEmail) return;
 
   await ensureContainer();
   await cleanupOldLocks();
 
-  const now = new Date();
-  const dateKey = now.toISOString().slice(0, 10);
-  const blobName = `${userEmail}-${event.iCalUId}-${dateKey}.lock`;
+  const blobName = `${userEmail}-${event.iCalUId}-reminder-${reminderType}.lock`;
 
   const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
   try {
     await blockBlobClient.upload("", 0, { conditions: { ifNoneMatch: "*" } });
   } catch (err: any) {
-    if (err.statusCode === 412) {
+    if (err.code === "BlobAlreadyExists") {
       console.log(
         `Message for ${userEmail}, event: ${event.subject} was already sent.`
       );
@@ -90,10 +93,12 @@ export async function postThreadMessage(client: any, body: any, text: string) {
   }
 }
 
-export function composeMessage(event: OutlookEvent): SlackMessage | null {
+export function composeMessage(event: OutlookEvent): ComposedReminder | null {
+  const now = dayjs();
   const startDate = dayjs(event.start);
   const endDate = dayjs(event.end);
-  const daysUntil = Math.ceil(dayjs(event.start).diff(dayjs(), "day", true));
+  const daysUntil = startDate.startOf("day").diff(now.startOf("day"), "days");
+  let reminderType: ReminderType;
 
   let notificationText: string;
   let headerText: string;
@@ -101,17 +106,21 @@ export function composeMessage(event: OutlookEvent): SlackMessage | null {
   let contextText: string;
 
   if (daysUntil === 3) {
+    reminderType = "3days";
     notificationText = `Event za 3 dana, a od tebe ni glasa :pensive:`;
     headerText = `Još tri dana i tri noći!`;
     bodyIntro = "Nisi odgovorio/la na sljedeći event :upside_down_face:";
     contextText = ":hourglass: Rok za odgovor: još 2 (i po) dana!";
   } else if (daysUntil === 1) {
+    reminderType = "1day";
     notificationText = `Dolaziš li na event? :thinking_face:`;
     headerText = `Do sutra imaš vremena… ili nemaš...`;
     bodyIntro = "Ako nisi siguran/na, stisni na možda :face_with_rolling_eyes:";
     contextText = ":hourglass: Rok za odgovor: do sutra!";
   } else {
-    console.log(`ComposeMessage: daysUntil ${daysUntil}, skipping message.`);
+    console.log(
+      `ComposeMessage: daysUntil ${daysUntil}, skipping message, for event ${event.subject}`
+    );
     return null;
   }
 
@@ -183,5 +192,5 @@ export function composeMessage(event: OutlookEvent): SlackMessage | null {
     ],
   };
 
-  return message;
+  return { message, reminderType };
 }

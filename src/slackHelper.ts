@@ -1,5 +1,6 @@
 import { OutlookEvent, ResponseStatus } from "./types";
 import { WebClient } from "@slack/web-api";
+import dayjs from "dayjs";
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -13,7 +14,7 @@ export async function getNonResponders(event: OutlookEvent) {
       attendee.status === ResponseStatus.NONE
   );
   console.log(
-    `Event '${event.subject}' has ${nonResponders.length} non-responders.`
+    `Event '${event.subject}' has ${nonResponders.length} non-responders`
   );
 
   return nonResponders;
@@ -36,3 +37,10 @@ export const getSlackUserEmail = async (client: WebClient, userId: string) => {
   const userInfo = await client.users.info({ user: userId });
   return userInfo.user?.profile?.email;
 };
+
+export function getDaysUntilEvent(event: OutlookEvent): number {
+  const now = dayjs();
+  const startDate = dayjs(event.start);
+  const daysUntil = startDate.startOf("day").diff(now.startOf("day"), "days");
+  return daysUntil;
+}
