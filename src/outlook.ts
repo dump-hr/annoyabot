@@ -71,7 +71,7 @@ export async function processEvent(
   const nonResponders = await getNonResponders(event);
   if (nonResponders.length === 0) return;
   console.log(
-    `📋 Event "${event.subject}" - Non-responders:`,
+    `Event "${event.subject}" - Non-responders:`,
     nonResponders.map((u) => u.email)
   );
 

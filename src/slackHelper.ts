@@ -1,4 +1,5 @@
 import { OutlookEvent, ResponseStatus } from "./types";
+import { BlobServiceClient, ContainerClient } from "@azure/storage-blob";
 import { WebClient } from "@slack/web-api";
 import dayjs from "dayjs";
 import * as dotenv from "dotenv";
@@ -43,4 +44,34 @@ export function getDaysUntilEvent(event: OutlookEvent): number {
   const startDate = dayjs(event.start);
   const daysUntil = startDate.startOf("day").diff(now.startOf("day"), "days");
   return daysUntil;
+}
+
+const blobConnectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
+const containerName = "slack-message-locks";
+
+const blobServiceClient =
+  BlobServiceClient.fromConnectionString(blobConnectionString);
+export const containerClient: ContainerClient =
+  blobServiceClient.getContainerClient(containerName);
+
+export async function ensureContainer() {
+  const exists = await containerClient.exists();
+  if (!exists) {
+    await containerClient.create();
+  }
+}
+
+export async function cleanupOldLocks(daysToKeep = 7) {
+  for await (const blob of containerClient.listBlobsFlat()) {
+    if (!blob.properties.createdOn) continue;
+
+    const ageInDays =
+      (Date.now() - blob.properties.createdOn.getTime()) /
+      (1000 * 60 * 60 * 24);
+
+    if (ageInDays > daysToKeep) {
+      await containerClient.deleteBlob(blob.name).catch(() => {});
+      console.log(`Deleted: ${blob.name}`);
+    }
+  }
 }

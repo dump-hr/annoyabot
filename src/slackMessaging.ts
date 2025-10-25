@@ -4,39 +4,8 @@ import {
   ReminderType,
   SlackMessage,
 } from "./types";
-import { getSlackIdByEmail, slack } from "./slackHelper";
+import { containerClient, getSlackIdByEmail, slack } from "./slackHelper";
 import dayjs from "dayjs";
-import { BlobServiceClient, ContainerClient } from "@azure/storage-blob";
-
-const blobConnectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
-const containerName = "slack-message-locks";
-
-const blobServiceClient =
-  BlobServiceClient.fromConnectionString(blobConnectionString);
-const containerClient: ContainerClient =
-  blobServiceClient.getContainerClient(containerName);
-
-async function ensureContainer() {
-  const exists = await containerClient.exists();
-  if (!exists) {
-    await containerClient.create();
-  }
-}
-
-async function cleanupOldLocks(daysToKeep = 1) {
-  for await (const blob of containerClient.listBlobsFlat()) {
-    if (!blob.properties.createdOn) continue;
-
-    const ageInDays =
-      (Date.now() - blob.properties.createdOn.getTime()) /
-      (1000 * 60 * 60 * 24);
-
-    if (ageInDays > daysToKeep) {
-      await containerClient.deleteBlob(blob.name).catch(() => {});
-      console.log(`Deleted: ${blob.name}`);
-    }
-  }
-}
 
 export async function sendReminder(
   userEmail: string,
@@ -45,9 +14,6 @@ export async function sendReminder(
   reminderType: "3days" | "1day"
 ) {
   if (!userEmail) return;
-
-  await ensureContainer();
-  await cleanupOldLocks();
 
   const blobName = `${userEmail}-${event.iCalUId}-reminder-${reminderType}.lock`;
 

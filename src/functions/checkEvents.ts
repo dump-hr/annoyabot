@@ -1,9 +1,13 @@
 import { app, InvocationContext, Timer } from "@azure/functions";
 import { fetchEvents, processEvent } from "../outlook";
+import { ensureContainer, cleanupOldLocks } from "../slackHelper";
 
 export async function CheckEvents(_myTimer: Timer, context: InvocationContext) {
   try {
     const events = await fetchEvents();
+
+    await ensureContainer();
+    await cleanupOldLocks();
 
     const results = await Promise.allSettled(
       events.map((event) => processEvent(event, context))
