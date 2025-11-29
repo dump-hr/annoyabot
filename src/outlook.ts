@@ -77,9 +77,7 @@ export async function processEvent(
 
   const composed = composeMessage(event);
 
-  if (!composed) {
-    return;
-  }
+  if (!composed) return;
 
   const { message, reminderType } = composed;
 

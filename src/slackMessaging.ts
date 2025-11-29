@@ -22,9 +22,15 @@ export async function sendReminder(
   try {
     await blockBlobClient.upload("", 0, { conditions: { ifNoneMatch: "*" } });
   } catch (err: any) {
-    if (err.code === "BlobAlreadyExists") {
+    const code =
+      err?.code || err?.statusCode || err?.status || err?.response?.status;
+    if (
+      code === "BlobAlreadyExists" ||
+      code === 412 ||
+      code === "ConditionNotMet"
+    ) {
       console.log(
-        `Message for ${userEmail}, event: ${event.subject} was already sent.`
+        `Message for ${userEmail}, event: ${event.subject} was already sent (lock exists).`
       );
       return;
     }
@@ -32,14 +38,23 @@ export async function sendReminder(
   }
 
   const userId = await getSlackIdByEmail(userEmail);
-  const result = await slack.chat.postMessage({
-    channel: userId,
-    ...message,
-  });
+  try {
+    const result = await slack.chat.postMessage({
+      channel: userId,
+      ...message,
+    });
 
-  console.log(
-    `Message sent successfully to ${userEmail} for event ${event.subject}. TS: ${result.ts}`
-  );
+    console.log(
+      `Message sent successfully to ${userEmail} for event ${event.subject}. TS: ${result.ts}`
+    );
+  } catch (err) {
+    try {
+      await blockBlobClient.deleteIfExists();
+    } catch (e) {
+      console.error("Failed to delete lock blob after send failure:", e);
+    }
+    throw err;
+  }
 }
 
 export async function postThreadMessage(client: any, body: any, text: string) {

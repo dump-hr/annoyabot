@@ -54,6 +54,12 @@ const blobServiceClient =
 export const containerClient: ContainerClient =
   blobServiceClient.getContainerClient(containerName);
 
+blobServiceClient.getAccountInfo &&
+  blobServiceClient
+    .getAccountInfo()
+    .then(() => console.log("Connected to Blob service"))
+    .catch(() => console.log("Could not connect to Blob service"));
+
 export async function ensureContainer() {
   const exists = await containerClient.exists();
   if (!exists) {
