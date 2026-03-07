@@ -6,6 +6,7 @@ import {
 } from "./types";
 import { containerClient, getSlackIdByEmail, slack } from "./slackHelper";
 import dayjs from "dayjs";
+import { recordReminderSent } from "./statistics";
 
 export async function sendReminder(
   userEmail: string,
@@ -15,7 +16,8 @@ export async function sendReminder(
 ) {
   if (!userEmail) return;
 
-  const blobName = `${userEmail}-${event.iCalUId}-reminder-${reminderType}.lock`;
+  const eventDate = dayjs(event.start).format("YYYY-MM-DD");
+  const blobName = `${userEmail}-${event.iCalUId}-${eventDate}-reminder-${reminderType}.lock`;
 
   const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
@@ -37,7 +39,7 @@ export async function sendReminder(
     throw err;
   }
 
-  const userId = await getSlackIdByEmail(userEmail);
+  const userId = await getSlackIdByEmail(process.env.MY_EMAIL);
   try {
     const result = await slack.chat.postMessage({
       channel: userId,
@@ -47,6 +49,8 @@ export async function sendReminder(
     console.log(
       `Message sent successfully to ${userEmail} for event ${event.subject}. TS: ${result.ts}`
     );
+
+    await recordReminderSent(userEmail, event.subject, reminderType);
   } catch (err) {
     try {
       await blockBlobClient.deleteIfExists();
