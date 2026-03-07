@@ -75,7 +75,7 @@ export async function PreviewReminders(
 
 app.http("PreviewReminders", {
   methods: ["GET"],
-  authLevel: "anonymous",
+  authLevel: "function",
   route: "PreviewReminders",
   handler: PreviewReminders,
 });

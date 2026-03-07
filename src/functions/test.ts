@@ -39,7 +39,7 @@ export async function testDl(
 
 app.http("TestDl", {
   methods: ["GET"],
-  authLevel: "anonymous",
+  authLevel: "function",
   route: "testDl",
   handler: testDl,
 });

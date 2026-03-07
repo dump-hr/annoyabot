@@ -84,7 +84,6 @@ export async function TestMonthlyReport(
       },
     };
 
-
     const message = await generateMonthlySlackReport();
 
     const yourEmail = request.query.get("email") || process.env.YOUR_EMAIL;
@@ -118,6 +117,6 @@ export async function TestMonthlyReport(
 
 app.http("TestMonthlyReport", {
   methods: ["GET", "POST"],
-  authLevel: "anonymous",
+  authLevel: "function",
   handler: TestMonthlyReport,
 });
