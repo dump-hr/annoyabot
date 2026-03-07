@@ -1,5 +1,5 @@
 import { composeMessage, sendReminder } from "./slackMessaging";
-import { OutlookEvent, ResponseStatus } from "./types";
+import { Attendee, OutlookEvent, ResponseStatus } from "./types";
 import { decodeOutlookGlobalId } from "./icalUidDecoder";
 import { parseOutlookEvents } from "./utils";
 import { getNonResponders } from "./slackHelper";
@@ -25,7 +25,7 @@ export async function getAccessToken() {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: params,
-    }
+    },
   );
 
   const { access_token } = await response.json();
@@ -48,7 +48,7 @@ export async function fetchEvents(): Promise<OutlookEvent[]> {
       headers: {
         Authorization: `Bearer ${token}`,
       },
-    }
+    },
   );
 
   const responseData = await response.json();
@@ -66,13 +66,13 @@ export async function fetchEvents(): Promise<OutlookEvent[]> {
 
 export async function processEvent(
   event: OutlookEvent,
-  context?: InvocationContext
+  context?: InvocationContext,
 ) {
   const nonResponders = await getNonResponders(event);
   if (nonResponders.length === 0) return;
   console.log(
     `Event "${event.subject}" - Non-responders:`,
-    nonResponders.map((u) => u.email)
+    nonResponders.map((u) => u.email),
   );
 
   const composed = composeMessage(event);
@@ -95,7 +95,7 @@ export async function processEvent(
 export async function updateEventResponse(
   iCalUId: string,
   userEmail: string,
-  statusResponse: ResponseStatus
+  statusResponse: ResponseStatus,
 ) {
   const token = await getAccessToken();
   const eventId = await getEventByICalUid(userEmail, iCalUId, token);
@@ -132,7 +132,7 @@ export async function updateEventResponse(
 export async function getEventByICalUid(
   userEmail: string,
   iCalUId: string,
-  token: string
+  token: string,
 ): Promise<string | null> {
   const decoded = decodeOutlookGlobalId(iCalUId);
   const queryId = decoded?.isOutlookId
@@ -169,4 +169,130 @@ export async function getEventByICalUid(
   }
 
   return event.id;
+}
+
+export async function expandAttendees(
+  attendees: Attendee[],
+  token: string,
+): Promise<Attendee[]> {
+  const expanded: Attendee[] = [];
+  const groupCache = new Map<string, Attendee[]>();
+  const seen = new Set<string>();
+
+  const statusByEmail = new Map<string, ResponseStatus>();
+  for (const a of attendees) {
+    if (a.email) {
+      statusByEmail.set(
+        a.email.toLowerCase(),
+        a.status ?? ResponseStatus.NONE
+      );
+    }
+  }
+
+  for (const attendee of attendees) {
+    const email = attendee.email?.toLowerCase();
+    if (!email) continue;
+
+    if (!groupCache.has(email)) {
+      const members = await getDistributionListMembers(email, token);
+      groupCache.set(email, members);
+    }
+
+    const members = groupCache.get(email) ?? [];
+
+    if (members.length > 0) {
+      for (const m of members) {
+        const mEmail = m.email?.toLowerCase() ?? "";
+        if (!mEmail || seen.has(mEmail)) continue;
+        seen.add(mEmail);
+        expanded.push({
+          ...m,
+          type: "user",
+          status: statusByEmail.get(mEmail) ?? ResponseStatus.NONE,
+        });
+      }
+    } else {
+      if (seen.has(email)) continue;
+      seen.add(email);
+      expanded.push({
+        ...attendee,
+        type: "user",
+        status: attendee.status ?? ResponseStatus.NONE,
+      });
+    }
+  }
+
+  return expanded;
+}
+
+export async function getDistributionListMembers(
+  groupEmail: string,
+  token: string,
+): Promise<Attendee[]> {
+  const members: Attendee[] = [];
+
+  const groupRes = await fetch(
+    `https://graph.microsoft.com/v1.0/groups?$filter=mail eq '${groupEmail}'`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+
+  if (!groupRes.ok) {
+    console.error(
+      `Failed to resolve group '${groupEmail}':`,
+      groupRes.status,
+      groupRes.statusText,
+      await groupRes.text(),
+    );
+    return members;
+  }
+
+  const groupData = await groupRes.json();
+  const group = groupData.value?.[0];
+
+  console.log("Resolving group:", groupEmail);
+  console.log("Group found:", group);
+
+  if (!group) {
+    console.warn(`Group not found for email: ${groupEmail}`);
+    return members;
+  }
+
+  let url = `https://graph.microsoft.com/v1.0/groups/${group.id}/transitiveMembers?$select=mail,userPrincipalName`;
+
+  while (url) {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+      console.error(
+        `Failed to list members for group '${groupEmail}' (${group.id}):`,
+        res.status,
+        res.statusText,
+        await res.text(),
+      );
+      break;
+    }
+
+    const data = await res.json();
+
+    if (!data.value) break;
+
+    for (const m of data.value) {
+      const email = m.mail || m.userPrincipalName;
+      if (email) {
+        members.push({
+          email,
+          type: "user",
+          status: ResponseStatus.NONE,
+        });
+      }
+    }
+
+    url = data["@odata.nextLink"];
+  }
+
+  return members;
 }
