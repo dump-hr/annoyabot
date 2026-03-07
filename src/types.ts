@@ -10,6 +10,7 @@ export enum ResponseStatus {
 export interface Attendee {
   email: string;
   status: ResponseStatus;
+  type?: "user" | "group";
 }
 
 export type OutlookEvent = {
@@ -87,4 +88,19 @@ export type ReminderType = "3days" | "1day";
 export interface ComposedReminder {
   message: SlackMessage;
   reminderType: ReminderType;
+}
+
+export interface NonResponderStats {
+  email: string;
+  name?: string;
+  displayName?: string;
+  remindersSent3Days: number;
+  remindersSent1Day: number;
+  totalReminders: number;
+  lastReminderDate?: string;
+  eventsMissed: string[];
+}
+
+export interface StatsRecord {
+  [email: string]: NonResponderStats;
 }

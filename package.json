@@ -8,7 +8,8 @@
     "clean": "rimraf dist",
     "prestart": "npm run clean && npm run build",
     "start": "func start",
-    "test": "echo \"No tests yet...\""
+    "test": "echo \"No tests yet...\"",
+    "test:nonresponders": "ts-node dist/test.js"
   },
   "dependencies": {
     "@azure/functions": "^4.0.0",
@@ -20,7 +21,8 @@
   "devDependencies": {
     "@types/node": "^20.x",
     "rimraf": "^5.0.0",
-    "typescript": "^4.0.0"
+    "ts-node": "^10.9.2",
+    "typescript": "^4.9.5"
   },
   "main": "dist/functions/*.js"
 }
