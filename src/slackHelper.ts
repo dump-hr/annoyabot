@@ -1,31 +1,12 @@
-import { OutlookEvent, ResponseStatus } from "./types";
+import { OutlookEvent } from "./types";
 import { BlobServiceClient, ContainerClient } from "@azure/storage-blob";
 import { WebClient } from "@slack/web-api";
 import dayjs from "dayjs";
 import * as dotenv from "dotenv";
-import { expandAttendees, getAccessToken } from "./outlook";
 
 dotenv.config();
 
 export const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
-
-export async function getNonResponders(event: OutlookEvent) {
-  const token = await getAccessToken();
-  const expandedAttendees = await expandAttendees(event.attendees, token);
-
-  console.log("Expanded attendees count:", expandedAttendees.length);
-
-  const nonResponders = expandedAttendees.filter(
-    (attendee) =>
-      attendee.email.toLowerCase() !== event.organizer.toLowerCase() &&
-      attendee.status === ResponseStatus.NONE
-  );
-  console.log(
-    `Event '${event.subject}' has ${nonResponders.length} non-responders`
-  );
-
-  return nonResponders;
-}
 
 export async function getSlackIdByEmail(email: string): Promise<string> {
   try {
@@ -125,11 +106,11 @@ export async function cleanupOldLocks(daysToKeep = 1) {
 async function cleanupStatsEventReferences() {
   try {
     const statsBlob = containerClient.getBlobClient(
-      "non-responder-statistics.json"
+      "non-responder-statistics.json",
     );
     const downloadResponse = await statsBlob.download();
     const downloaded = await streamToBuffer(
-      downloadResponse.readableStreamBody!
+      downloadResponse.readableStreamBody!,
     );
     const stats = JSON.parse(downloaded.toString());
 
@@ -140,7 +121,7 @@ async function cleanupStatsEventReferences() {
     });
 
     const blobClient = containerClient.getBlockBlobClient(
-      "non-responder-statistics.json"
+      "non-responder-statistics.json",
     );
     const content = JSON.stringify(stats, null, 2);
     await blobClient.upload(content, Buffer.byteLength(content));
@@ -154,7 +135,7 @@ async function cleanupStatsEventReferences() {
 }
 
 export async function streamToBuffer(
-  readableStream: NodeJS.ReadableStream
+  readableStream: NodeJS.ReadableStream,
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];

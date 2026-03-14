@@ -6,16 +6,18 @@ import {
 } from "@azure/functions";
 import dayjs from "dayjs";
 import { fetchEvents } from "../outlook";
-import { getNonResponders } from "../slackHelper";
+import { getNonResponders } from "../outlook";
 import { composeMessage } from "../slackMessaging";
 
 export async function PreviewReminders(
   _request: HttpRequest,
-  context: InvocationContext
+  context: InvocationContext,
 ): Promise<HttpResponseInit> {
   try {
     const events = await fetchEvents();
-    context.log(`Fetched ${events.length} events. Computing who would get reminders (no messages sent)...`);
+    context.log(
+      `Fetched ${events.length} events. Computing who would get reminders (no messages sent)...`,
+    );
 
     const preview: Array<{
       subject: string;
@@ -37,7 +39,8 @@ export async function PreviewReminders(
           start: startStr,
           wouldSendCount: 0,
           wouldSendTo: [],
-          skipReason: "No reminder scheduled for this event (not 3 or 1 day before)",
+          skipReason:
+            "No reminder scheduled for this event (not 3 or 1 day before)",
         });
         continue;
       }
@@ -53,7 +56,10 @@ export async function PreviewReminders(
         wouldSendTo,
       });
 
-      context.log(`"${event.subject}" (${startStr}): would send to ${wouldSendTo.length} people:`, wouldSendTo);
+      context.log(
+        `"${event.subject}" (${startStr}): would send to ${wouldSendTo.length} people:`,
+        wouldSendTo,
+      );
     }
 
     return {

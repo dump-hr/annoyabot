@@ -32,7 +32,7 @@ const ERROR_MESSAGE =
 
 export const handleResponse = async (
   actionId: string,
-  { ack, body, client }
+  { ack, body, client },
 ) => {
   await ack();
   const { message, status } = RESPONSE_MAP[actionId];

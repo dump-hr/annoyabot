@@ -4,7 +4,8 @@ import {
   HttpResponseInit,
   InvocationContext,
 } from "@azure/functions";
-import { getAccessToken, expandAttendees } from "../outlook";
+import { expandAttendees } from "../outlook";
+import { getAccessToken } from "../outlookAuth";
 import { Attendee, ResponseStatus } from "../types";
 
 export async function testDl(
