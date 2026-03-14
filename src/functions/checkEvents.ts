@@ -10,7 +10,7 @@ export async function CheckEvents(_myTimer: Timer, context: InvocationContext) {
     await cleanupOldLocks();
 
     const results = await Promise.allSettled(
-      events.map((event) => processEvent(event, context))
+      events.map((event) => processEvent(event, context)),
     );
 
     const failed = results.filter((r) => r.status === "rejected");

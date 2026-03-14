@@ -12,7 +12,7 @@ export async function sendReminder(
   userEmail: string,
   message: SlackMessage,
   event: OutlookEvent,
-  reminderType: "3days" | "1day"
+  reminderType: "3days" | "1day",
 ) {
   if (!userEmail) return;
 
@@ -32,7 +32,7 @@ export async function sendReminder(
       code === "ConditionNotMet"
     ) {
       console.log(
-        `Message for ${userEmail}, event: ${event.subject} was already sent (lock exists).`
+        `Message for ${userEmail}, event: ${event.subject} was already sent (lock exists).`,
       );
       return;
     }
@@ -47,7 +47,7 @@ export async function sendReminder(
     });
 
     console.log(
-      `Message sent successfully to ${userEmail} for event ${event.subject}. TS: ${result.ts}`
+      `Message sent successfully to ${userEmail} for event ${event.subject}. TS: ${result.ts}`,
     );
 
     await recordReminderSent(userEmail, event.subject, reminderType);
@@ -104,7 +104,7 @@ export function composeMessage(event: OutlookEvent): ComposedReminder | null {
     contextText = ":hourglass: Rok za odgovor: do sutra!";
   } else {
     console.log(
-      `ComposeMessage: daysUntil ${daysUntil}, skipping message, for event ${event.subject}`
+      `ComposeMessage: daysUntil ${daysUntil}, skipping message, for event ${event.subject}`,
     );
     return null;
   }
@@ -121,9 +121,9 @@ export function composeMessage(event: OutlookEvent): ComposedReminder | null {
         text: {
           type: "mrkdwn",
           text: `${bodyIntro}\n\n*${event.subject}*\n:date: ${startDate.format(
-            "DD.MM.YYYY"
+            "DD.MM.YYYY",
           )} | :clock3: ${startDate.format("HH:mm")} - ${endDate.format(
-            "HH:mm"
+            "HH:mm",
           )}`,
         },
       },
